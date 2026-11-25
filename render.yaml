@@ -1,0 +1,33 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Free web service running the Node server as-is. Free services sleep when idle and the
+# local data store (data/demo.json) resets on every deploy or restart — fine for demos.
+services:
+  - type: web
+    name: visarjanops
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/v1/public/features
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEMO_MODE
+        value: "true"
+      - key: SARVAM_ENABLED
+        value: "true"
+      - key: SARVAM_DAILY_CALL_LIMIT
+        value: "150"
+      # Secrets: set these in the Render dashboard (never commit them).
+      - key: OPS_USERNAME
+        sync: false
+      - key: OPS_PASSWORD
+        sync: false
+      - key: FLAGSMITH_SERVER_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: OPS_MONITOR_TOKEN
+        sync: false
+      - key: PASS_SIGNING_SECRET
+        generateValue: true

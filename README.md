@@ -77,7 +77,11 @@ Setup: create a free project at app.flagsmith.com â†’ Development environment â†
 
 ### NudgeBee: health monitoring
 
-`GET /api/v1/health` returns service status, uptime, store health, flag mode and voice usage (no secrets, no visitor data). It requires `Authorization: Bearer <OPS_MONITOR_TOKEN>` (24+ characters) or a staff session. In NudgeBee, add a Workflow with an **HTTP Request** task (`integrations.http`): method GET, auth type Bearer, token = `OPS_MONITOR_TOKEN`, URL = your deployed app's `/api/v1/health`, on a schedule trigger; alert when `status_code` is not 200 or `body.data.status` is not `ok`. NudgeBee's cloud cannot reach `localhost`, so this needs a deployed (HTTPS) URL or a self-hosted NudgeBee on the same network. No NudgeBee workflow has been configured or verified yet.
+`GET /api/v1/health` returns service status, uptime, store health, flag mode and voice usage (no secrets, no visitor data). It requires `Authorization: Bearer <OPS_MONITOR_TOKEN>` (24+ characters) or a staff session. In NudgeBee, add a Workflow with an **HTTP Request** task (`integrations.http`): method GET, auth type Bearer, token = `OPS_MONITOR_TOKEN`, URL = your deployed app's `/api/v1/health`, on a schedule trigger; alert when `status_code` is not 200 or `body.data.status` is not `ok`. NudgeBee's cloud cannot reach `localhost`, so this needs a deployed (HTTPS) URL or a self-hosted NudgeBee on the same network. Verified: a NudgeBee automation (HTTP Request task, Bearer auth) called the endpoint over HTTPS through a temporary Cloudflare tunnel and completed with the health data. See [SPONSORS.md](SPONSORS.md) for screenshots.
+
+## Deploy to Render
+
+`render.yaml` defines a free Render web service (build `npm ci`, start `npm start`, health check `/api/v1/public/features`). On Render the server listens on `0.0.0.0` and uses secure cookies. Set the secret variables (`OPS_USERNAME`, `OPS_PASSWORD`, `FLAGSMITH_SERVER_KEY`, `SARVAM_API_KEY`, `OPS_MONITOR_TOKEN`) in the Render dashboard. Free services sleep after ~15 minutes idle, and the local data store resets on each deploy or restart.
 
 ## Run locally
 

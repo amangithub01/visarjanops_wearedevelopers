@@ -137,7 +137,9 @@ try {
  if(req.method==='GET'){const assets={'/':'index.html','/index.html':'index.html','/src.js':'src.js','/styles.css':'styles.css','/assets/ganesh-logo.jpg':'public/assets/ganesh-logo.jpg','/vendor/maplibre-gl.mjs':'public/vendor/maplibre-gl.mjs','/vendor/maplibre-gl-worker.mjs':'public/vendor/maplibre-gl-worker.mjs','/vendor/maplibre-gl.css':'public/vendor/maplibre-gl.css','/vendor/jsQR.js':'public/vendor/jsQR.js','/vendor/three.module.js':'public/vendor/three.module.js','/vendor/three.core.js':'public/vendor/three.core.js'},name=assets[path];if(name){const target=join(publicRoot,name);try{if((await stat(target)).isFile()){const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.jpg':'image/jpeg'};res.writeHead(200,{'content-type':types[extname(target)]||'application/octet-stream','x-content-type-options':'nosniff','cache-control':'no-cache'});createReadStream(target).pipe(res);return;}}catch{}}}
  send(res,404,{error:'Route not found'});
 } catch(e){send(res,500,{error:e.message||'Request failed'});}});
-api.listen(PORT,'127.0.0.1',()=>console.log(`VisarjanOps API and web app: http://localhost:${PORT}`));
+// Hosting platforms (Render) need all interfaces; local runs stay on loopback unless HOST is set.
+const HOST=process.env.HOST||(process.env.RENDER||process.env.NODE_ENV==='production'?'0.0.0.0':'127.0.0.1');
+api.listen(PORT,HOST,()=>console.log(`VisarjanOps API and web app: http://localhost:${PORT} (listening on ${HOST})`));
 // Check-in codes are derived (HMAC) from the booking reference, so they can be re-shown with the recovery key but never stored in plain text.
 function passCodeFor(db,reference){const secret=process.env.PASS_SIGNING_SECRET||db.passSecret||'';return createHmac('sha256',secret).update(reference).digest('hex').slice(0,10).toUpperCase();}
 const formatCode=c=>`${c.slice(0,5)}-${c.slice(5)}`;
@@ -146,7 +148,7 @@ function crowdFor(db,siteId){const out={expected:0,onSite:0,completed:0,groupsOn
 const publicCrowd=c=>({onSite:c.onSite,expected:c.expected,lastScanAt:c.lastScanAt,source:'Gate check-ins and bookings (estimate)'});
 function publicBooking(b,db){const s=db.sites.find(x=>x.id===b.siteId);const {secretHash,...safe}=b;return {...safe,siteName:s?.name,siteArea:s?.area};}
 // Voice endpoints spend Sarvam credits, so they reject cross-site requests despite the API's permissive CORS header.
-function sameOrigin(req){const origin=req.headers.origin;if(!origin)return true;try{const o=new URL(origin);return ['localhost','127.0.0.1'].includes(o.hostname)&&Number(o.port||80)===PORT;}catch{return false;}}
+function sameOrigin(req){const origin=req.headers.origin;if(!origin)return true;try{const o=new URL(origin);if(o.host===req.headers.host)return true;return ['localhost','127.0.0.1'].includes(o.hostname)&&Number(o.port||80)===PORT;}catch{return false;}}
 const hits=new Map();
 function limited(req,bucket,max,windowMs){const key=`${bucket}:${req.socket.remoteAddress}`,now=Date.now();let h=hits.get(key);if(!h||h.until<now){h={count:0,until:now+windowMs};hits.set(key,h);}h.count++;if(hits.size>5000)for(const [k,v] of hits)if(v.until<now)hits.delete(k);return h.count>max;}
 function readRaw(req,max){return new Promise((resolve,reject)=>{const chunks=[];let size=0;req.on('data',c=>{size+=c.length;if(size>max){reject(Object.assign(new Error('Recording too long. Keep it under 30 seconds.'),{statusCode:413}));req.destroy();return;}chunks.push(c);});req.on('end',()=>resolve(Buffer.concat(chunks)));req.on('error',reject);});}
