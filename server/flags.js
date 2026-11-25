@@ -59,6 +59,7 @@ export async function getFlags() {
   if (!client) return { ...defaults };
   try {
     const flags = await client.getEnvironmentFlags();
+    state.lastLoadedAt ||= new Date().toISOString();
     return Object.fromEntries(Object.keys(FLAG_DEFAULTS).map(name => [name, flags.isFeatureEnabled(name)]));
   } catch {
     state.lastError = 'Flagsmith is unavailable; using default flag values.';
