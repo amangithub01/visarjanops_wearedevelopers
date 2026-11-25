@@ -51,13 +51,13 @@ The pass currently displays a demo visual derived from the reference. It is **no
 
 The working application uses a dependency-free Node.js HTTP server plus a static HTML/CSS/JavaScript client, with JSON-file persistence in `data/demo.json`. The server implements public site discovery, booking creation with serialized slot-capacity reservation, secured booking lookup by a random recovery key (stored as a hash), pass metadata, assistance request create/status, feedback persistence, simulated SSE, demo reset, and an optional protected Apify Actor run that stages a capped dataset for staff review. The interface is responsive and uses fictional demo data.
 
-This is a runnable foundation, not the complete Spring Boot/PostgreSQL platform in the build brief. Java, Docker and a package installer with network access were unavailable in the build environment. The application therefore does not yet provide Spring Boot, React/TypeScript, PostgreSQL/PostGIS, Redis, Flyway migrations, a production identity provider, real QR generation/scanning, cancellation, facilities API, live queue processing, navigation, or complete visit/feedback UI. Do not represent these features as implemented.
+This is a runnable foundation, not the complete Node.js/PostgreSQL platform planned for production. The application does not yet provide React/TypeScript, PostgreSQL/PostGIS, Redis, production database migrations, a production identity provider, real QR generation/scanning, cancellation, facilities API, live queue processing, navigation, or complete visit/feedback UI. Do not represent these features as implemented.
 
 ### Intended production architecture
 
 - React + TypeScript + Vite PWA for the public client; React Router, TanStack Query, React Hook Form/Zod, i18next, Workbox, MapLibre and ZXing where appropriate.
-- Java 21 / Spring Boot modular monolith: controller, service, repository and DTO layers; Spring Security; Jakarta Validation; Spring Data JPA; Flyway; Springdoc OpenAPI; ZXing.
-- PostgreSQL + PostGIS for persistent and spatial data; Redis only for appropriate ephemeral state; SSE for queue updates.
+- Node.js modular monolith for the API and business logic, evolving the existing server; add request validation, OpenAPI documentation, and production-grade staff authentication. Do not introduce a Java/Spring Boot service.
+- PostgreSQL + PostGIS for persistent and spatial data, with Node.js-compatible migrations and database access; Redis only for a defined ephemeral workload; SSE for live queue updates.
 - Docker Compose for local infrastructure. Configurable map tiles and optional OSRM; never rely on public OSM tiles for unlimited production traffic.
 - Role-based, authenticated staff operations; privacy-preserving public booking recovery; audit events, cancellation, check-in replay protection and idempotency.
 
