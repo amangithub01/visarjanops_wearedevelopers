@@ -57,6 +57,7 @@ PostGIS supports nearby-site discovery and spatial indexes. Redis should be adde
 | POST | `/api/v1/operations/auth/logout` | End the current operations session |
 | GET | `/api/v1/operations/sites` | Session-protected site list with classified status and source summaries |
 | POST | `/api/v1/operations/sites/{siteId}/status` | Session-protected staff status update; requires the `ops_status_updates` flag |
+| POST | `/api/v1/operations/checkin` | Session-protected gate scan (QR payload or reference + code); entry → exit → refused; requires `ops_status_updates` |
 | GET | `/api/v1/public/features` | Public flag values (nearby discovery, map, voice) |
 | POST | `/api/v1/public/voice/search` | Audio → Sarvam speech-to-text → matched area/locality/site; flag, budget, rate and origin limited |
 | POST | `/api/v1/public/voice/speak` | Spoken summary of up to 3 listed sites (Sarvam text-to-speech) |

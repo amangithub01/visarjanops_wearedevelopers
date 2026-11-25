@@ -2,7 +2,7 @@
 
 **Your visarjan, thoughtfully organised.** A mobile-first civic-tech demo that connects immersion-site discovery, slot booking, a booking pass and assistance requests. The interface uses a warm ivory and saffron Ganeshotsav theme with subtle rangoli-inspired artwork and responsive layouts.
 
-> **Data boundary:** public sites come from **MCGM's published "Arrangement of Ganeshotsav 2025" list** (Mumbai artificial ponds, downloaded from the [MCGM portal](https://portal.mcgm.gov.in/irj/portal/anonymous/qlGanpatiDeQR)). It is a **past-season** list, extracted automatically from a scanned PDF and **pending operator review**: names may be incomplete and some locations could not be read. Site **status is shown only when signed-in staff post it** in Operations; nothing is inferred or simulated for visitors. Location is used only in the visitor's browser after they tap **Use my location**. The map loads tiles from the OpenFreeMap public instance. Eight fictional Pune/Bengaluru sites remain available for booking demos and tests only when the server runs with `DEMO_SITES=true`. Apify is an optional, manually started import for staging public-source results; it does not update site listings.
+> **Data boundary:** public sites come from **MCGM's published "Arrangement of Ganeshotsav 2025" list** (Mumbai artificial ponds, downloaded from the [MCGM portal](https://portal.mcgm.gov.in/irj/portal/anonymous/qlGanpatiDeQR)). It is a **past-season** list, extracted automatically from a scanned PDF and **pending operator review**: names may be incomplete and some locations could not be read. Site **status is shown only when signed-in staff post it** in Operations; nothing is inferred or simulated for visitors. Location is used only in the visitor's browser after they tap **Use my location**. The map loads tiles from the OpenFreeMap public instance. Eight fictional, clearly labelled demo sites (four in Pune, four in Bengaluru) are shown and bookable by default (`DEMO_SITES=false` hides them). Apify is an optional, manually started import for staging public-source results; it does not update site listings.
 
 ## Official site data (MCGM)
 
@@ -35,6 +35,15 @@ Explore opens with **Use my location** and a manual **Choose an area** fallback.
 
 - **Operator verification and this season's list:** imported sites are `PENDING_REVIEW` and from 2025. An authorised operator must review names and locations (an approve/reject screen is not built yet), and the current season's MCGM list must be imported when published.
 - **Staff at sites, or an authorised feed:** status is only as live as staff posting it. Real use needs individual staff accounts and roles (today there is one shared login), or an authorised municipal/site-operator feed implementing `createStatusSource` in `server/status-source.js`. Scraped pages must never be treated as live queue data.
+
+## Booking, QR pass and gate check-in (demo sites)
+
+1. A visitor books an arrival slot at a demo site. The booking stores only a hash of the recovery key.
+2. The pass shows a **scannable QR** (generated server-side with `qrcode`) containing `VJ1|<reference>|<check-in code>` and the same code as text. The check-in code is an HMAC of the reference with a server secret (`PASS_SIGNING_SECRET`, or one generated into the local store), so it is never stored in plain text and the QR never contains the recovery key.
+3. Operations → **Gate check-in**: staff choose the gate's site, then **Scan QR with camera** (decoded on the device with vendored jsQR; camera needs `localhost` or HTTPS) or type the reference and code. The first scan checks the group in, the second checks them out, and further scans are refused. A pass only works at its own site. Requires a staff session and the `ops_status_updates` flag.
+4. **Crowd estimate** per site and slot: *expected* = booked, not yet arrived; *on site* = scanned in, not out; *completed* = scanned out. Operations sees the full breakdown; visitors see "~N on site · M expected" labelled as an estimate from gate check-ins. No names or emails leave Operations.
+
+Municipal (MCGM) sites are not bookable, so they have no pass or crowd counts.
 
 ## Sponsor integrations
 
@@ -133,11 +142,11 @@ The demo storage file is for local demonstration only: simultaneous processes, d
 
 ## Verification
 
-With the server running with `DEMO_SITES=true` in one terminal, run `npm test` in another terminal for the local API smoke test (including concurrent capacity reservation) and the status-freshness unit tests. The API test resets demo data, so point the test server at a throwaway store, for example `DEMO_SITES=true DATA_DIR=/tmp/visarjanops-test PORT=4173 npm run dev`. Run `npm run check` for Node source syntax validation. This is not a complete backend, authorization, QR-scan or browser end-to-end suite; accessibility review and broader tests are needed before production readiness.
+With the server running in one terminal, run `npm test` in another terminal for the local API smoke test (including concurrent capacity reservation) and the status-freshness unit tests. The API test resets demo data, so point the test server at a throwaway store, for example `FEATURE_FLAG_DEFAULTS=ops_status_updates=on SARVAM_ENABLED=false DATA_DIR=/tmp/visarjanops-test PORT=4173 npm run dev`. Run `npm run check` for Node source syntax validation. This is not a complete backend, authorization, QR-scan or browser end-to-end suite; accessibility review and broader tests are needed before production readiness.
 
 ## Licensing and attribution
 
-The only runtime npm dependency is the official Flagsmith SDK, `@flagsmith/nodejs` 9.5.0 (MIT), pinned in `package-lock.json`; run `npm install` before starting. The application code is offered under MIT; see `LICENSE`. The UI uses Google Fonts via the fonts.googleapis.com service when online (Poppins, Inter and Noto Sans Devanagari, SIL Open Font License 1.1); system sans-serif fallbacks work without a network connection. The optional map uses vendored MapLibre GL JS (BSD-3-Clause, `public/vendor/MAPLIBRE-LICENSE.txt`) and OpenFreeMap tiles built from OpenStreetMap data (© OpenStreetMap contributors, ODbL); attribution is shown on the map. Source listings and full license text are in `THIRD_PARTY_NOTICES.md`.
+Runtime npm dependencies are the official Flagsmith SDK `@flagsmith/nodejs` 9.5.0 (MIT) and `qrcode` 1.5.4 (MIT), pinned in `package-lock.json`; run `npm install` before starting. QR scanning uses vendored jsQR 1.4.0 (Apache-2.0, `public/vendor/JSQR-LICENSE.txt`). The application code is offered under MIT; see `LICENSE`. The UI uses Google Fonts via the fonts.googleapis.com service when online (Poppins, Inter and Noto Sans Devanagari, SIL Open Font License 1.1); system sans-serif fallbacks work without a network connection. The optional map uses vendored MapLibre GL JS (BSD-3-Clause, `public/vendor/MAPLIBRE-LICENSE.txt`) and OpenFreeMap tiles built from OpenStreetMap data (© OpenStreetMap contributors, ODbL); attribution is shown on the map. Source listings and full license text are in `THIRD_PARTY_NOTICES.md`.
 
 The Operations route requires configured staff credentials and shows fictional site data alongside the optional manual Apify import control. It does not provide site editing or approve imported data into public listings. The header uses the Ganesh logo supplied by the user, cropped to fit the brand mark.
 

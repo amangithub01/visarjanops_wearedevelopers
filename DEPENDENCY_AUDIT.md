@@ -11,3 +11,5 @@ No package lock is needed because no packages are declared. No transitive applic
 
 | @flagsmith/nodejs | 9.5.0 (pinned) | MIT | Official Flagsmith server SDK (local evaluation). Transitive: pino (MIT), semver (ISC), jsonpath-plus (MIT), undici-types (MIT). Replaces the deprecated `flagsmith-nodejs` package. |
 | MapLibre GL JS | 6.19.0 (vendored) | BSD-3-Clause | Map rendering, `public/vendor/`. |
+| qrcode | 1.5.4 (pinned) | MIT | Server-side SVG QR codes for booking passes. |
+| jsQR | 1.4.0 (vendored) | Apache-2.0 | In-browser QR decoding for the staff gate scanner, `public/vendor/jsQR.js`. |

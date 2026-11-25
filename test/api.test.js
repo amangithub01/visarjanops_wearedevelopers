@@ -70,3 +70,22 @@ test('health endpoint needs the monitor token or a staff session and exposes no 
  assert.equal(body.status,'ok');assert.ok(body.store.sites>=208);assert.equal(typeof body.uptimeSeconds,'number');
  for(const secret of [process.env.OPS_MONITOR_TOKEN,process.env.OPS_PASSWORD,process.env.SARVAM_API_KEY].filter(Boolean))assert.equal(text.includes(secret),false);
 });
+test('booking issues a QR pass without the recovery key, and gate scans update the crowd once each',async()=>{
+ const made=await request('/bookings',{method:'POST',body:JSON.stringify({siteId:'blr-indiranagar',slot:'5:30 – 6:00 PM',people:3,name:'Gate Test',email:'gate@example.test'})});assert.equal(made.status,201);
+ const {reference,recoveryKey}=made.body.data;
+ const pass=await request(`/bookings/${reference}/pass?key=${encodeURIComponent(recoveryKey)}`);assert.equal(pass.status,200);
+ assert.match(pass.body.data.qrPayload,/^VJ1\|VJ-[0-9A-F]{8}\|[0-9A-F]{10}$/);assert.equal(pass.body.data.qrPayload.includes(recoveryKey),false);assert.match(pass.body.data.qrSvg,/^<svg/);
+ const before=(await request('/sites/blr-indiranagar')).body.data.crowd;
+ const anonymous=await opsRequest('/operations/checkin',{method:'POST',body:JSON.stringify({payload:pass.body.data.qrPayload})});assert.equal(anonymous.status,401);
+ if(!process.env.OPS_USERNAME||!process.env.OPS_PASSWORD)return;
+ const login=await opsRequest('/operations/auth/login',{method:'POST',body:JSON.stringify({username:process.env.OPS_USERNAME,password:process.env.OPS_PASSWORD})});const cookie=login.headers.get('set-cookie').split(';')[0];
+ const scan=(extra={})=>opsRequest('/operations/checkin',{method:'POST',headers:{cookie},body:JSON.stringify({payload:pass.body.data.qrPayload,siteId:'blr-indiranagar',...extra})});
+ assert.equal((await scan({siteId:'blr-whitefield'})).status,409,'wrong gate');
+ assert.equal((await opsRequest('/operations/checkin',{method:'POST',headers:{cookie},body:JSON.stringify({reference,code:'0000000000'})})).status,404,'wrong code');
+ const entry=await scan();assert.equal(entry.status,200);assert.equal(entry.body.data.action,'entry');
+ let crowd=(await request('/sites/blr-indiranagar')).body.data.crowd;assert.equal(crowd.onSite,before.onSite+3);assert.equal(crowd.expected,before.expected-3);
+ const exit=await scan();assert.equal(exit.body.data.action,'exit');
+ crowd=(await request('/sites/blr-indiranagar')).body.data.crowd;assert.equal(crowd.onSite,before.onSite);
+ assert.equal((await scan()).status,409,'pass cannot be reused');
+ await opsRequest('/operations/auth/logout',{method:'POST',headers:{cookie}});
+});

@@ -8,8 +8,8 @@ const SCHEMA_VERSION = 3;
 
 // Official site lists produced by scripts/import-*.mjs. Records keep their source, festival year and review status.
 const OFFICIAL_SOURCES = ['mcgm-ganeshotsav-2025.json'].map(name => JSON.parse(readFileSync(new URL(`./sources/${name}`, import.meta.url), 'utf8')));
-// Fictional, bookable demo sites are only loaded when DEMO_SITES=true (used by the automated tests and booking demos).
-const includeDemo = () => process.env.DEMO_SITES === 'true';
+// Fictional, bookable demo sites (Pune and Bengaluru) are shown by default and clearly labelled; DEMO_SITES=false hides them.
+const includeDemo = () => process.env.DEMO_SITES !== 'false';
 
 // Demo coordinates are synthetic: placed in real neighbourhoods so distance sorting can be shown,
 // but they do not mark any real facility. Never present them as verified locations.

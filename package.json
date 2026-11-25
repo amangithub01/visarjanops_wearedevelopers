@@ -13,6 +13,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@flagsmith/nodejs": "9.5.0"
+    "@flagsmith/nodejs": "9.5.0",
+    "qrcode": "1.5.4"
   }
 }

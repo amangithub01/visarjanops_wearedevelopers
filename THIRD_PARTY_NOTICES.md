@@ -14,6 +14,10 @@ The application itself has no npm runtime dependencies. Site artwork uses CSS an
 
 Official Flagsmith server SDK, MIT License, installed via npm (`package-lock.json`). Its dependencies pino, jsonpath-plus and undici-types are MIT; semver is ISC. https://github.com/Flagsmith/flagsmith-nodejs-client
 
+### qrcode 1.5.4 (npm) and jsQR 1.4.0 (vendored)
+
+`qrcode` (MIT) generates pass QR codes on the server. `public/vendor/jsQR.js` is the unmodified jsQR distribution (Apache-2.0; full text in `public/vendor/JSQR-LICENSE.txt`), used by the staff gate scanner.
+
 ### Geocoding
 
 Voice search may look up a spoken Mumbai locality via OpenStreetMap Nominatim (https://nominatim.org, usage policy: max 1 request/second, identifying User-Agent, caching). Data © OpenStreetMap contributors, ODbL.
