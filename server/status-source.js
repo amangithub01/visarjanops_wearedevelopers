@@ -8,7 +8,7 @@ const DELAYED_MAX_AGE_MS = 30 * 60 * 1000;
 const LABELS = {
   live: 'Live · authorised feed',
   delayed: 'Delayed · authorised feed',
-  demo: 'Demo · simulated, not a live reading',
+  demo: 'Simulated · not a live reading',
   unavailable: 'Status unavailable'
 };
 
