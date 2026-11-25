@@ -27,12 +27,20 @@ Use a Node.js modular monolith; do not add a Java/Spring Boot backend. Package d
 
 PostGIS supports nearby-site discovery and spatial indexes. Redis should be added only for a defined cache or ephemeral workload. SSE can publish queue snapshots with timestamp, source and clear stale-data state. Keep map/routing integrations behind configuration and interfaces. Treat any simulated queue or facility detail as demo data until integrated with an authorised source.
 
+## Nearby discovery and site status (implemented)
+
+- **Location stays in the browser.** Explore requests geolocation once, only after the visitor taps **Use my location**. The client computes haversine distance against the public site list. Coordinates are never sent to the API, logged or persisted. The manual area picker sorts from a demo area centre instead.
+- **Site coordinates and provenance.** Each site record has `coordinates {lat, lng, kind}` and `provenance {kind, authority, sourceUrl, festivalYear, verifiedAt}`. Today every site is `kind: 'synthetic'` / `provenance.kind: 'demo'`. Directions links render only for `coordinates.kind === 'verified'`. Store schema v2 migrates v1 demo files in place, preserving bookings and slot counts.
+- **Status classification (`server/status-source.js`).** `classifyStatus` returns `live | delayed | demo | unavailable` and releases status, waiting and wait values only with a named source and observation time. Live requires an `authorised-feed` snapshot ≤5 minutes old; staff updates are at most Delayed; anything without a source/timestamp, from an unknown source kind, future-dated or older than 30 minutes is Unavailable. Public endpoints and the SSE stream send only the classified `statusInfo`, not raw demo fields.
+- **Future live source.** `createStatusSource()` is the adapter boundary for an authorised municipal or site-operator feed. No feed is connected; `connected` is always false and `fetchSnapshots()` refuses until a reviewed adapter is implemented. Scraped or imported data (for example Apify output) must never be classified as live.
+- **Map.** MapLibre GL JS is vendored under `public/vendor/` and imported dynamically only when the visitor opens the map. Tiles come from OpenFreeMap; no API key or billing.
+
 ## API in the demo
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/v1/public/sites` | Fictional demo site list; optional `q` search |
-| GET | `/api/v1/public/sites/{siteId}` | One demo site |
+| GET | `/api/v1/public/sites` | Demo site list with coordinates, provenance and classified `statusInfo`; optional `q` search (name, area, city) |
+| GET | `/api/v1/public/sites/{siteId}` | One demo site (same public shape) |
 | POST | `/api/v1/public/bookings` | Validated capacity reservation |
 | GET | `/api/v1/public/bookings/{reference}?key=…` | Recover a booking with its secret key |
 | GET | `/api/v1/public/bookings/{reference}/pass?key=…` | Pass metadata with the booking recovery key (demo payload only) |

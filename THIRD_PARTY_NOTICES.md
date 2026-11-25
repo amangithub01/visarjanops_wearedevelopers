@@ -8,4 +8,12 @@
 | Noto Sans Devanagari | https://fonts.google.com/noto/specimen/Noto+Sans+Devanagari · Google Fonts hosted font | SIL Open Font License 1.1 | Devanagari fallback and language support, loaded remotely when available. OFL permits use and distribution subject to its terms; no font files are redistributed here. |
 | Ganesh logo | User-supplied `Ganesh Logo.jpg`, cropped for the header at `public/assets/ganesh-logo.jpg` | Not specified | Used at the user's request. No author or licence information accompanied the image; confirm reuse/redistribution rights before publishing the repository. |
 
-The application itself has no npm runtime dependencies. Site artwork uses CSS and text glyphs created for this demo. No OpenStreetMap data or map tiles are currently included. If maps are added, include the required OpenStreetMap attribution, comply with ODbL, and use a tile service whose usage terms permit the intended load. Re-audit exact versions and notices before each production release.
+The application itself has no npm runtime dependencies. Site artwork uses CSS and text glyphs created for this demo.
+
+### MapLibre GL JS 6.19.0 (vendored)
+
+`public/vendor/maplibre-gl.mjs`, `maplibre-gl-worker.mjs` and `maplibre-gl.css` are unmodified distribution files from the `maplibre-gl` npm package (source maps references removed). License: BSD-3-Clause, full text in `public/vendor/MAPLIBRE-LICENSE.txt`. https://github.com/maplibre/maplibre-gl-js
+
+### Map tiles and data
+
+The optional map loads the `liberty` style and vector tiles from the OpenFreeMap public instance (https://openfreemap.org; free, no API key; see its terms of service). Tiles are built with OpenMapTiles from OpenStreetMap data, © OpenStreetMap contributors, available under the Open Database License (ODbL). Attribution is displayed on the map. For production traffic, self-host tiles or confirm the provider's usage terms. Re-audit exact versions and notices before each production release.

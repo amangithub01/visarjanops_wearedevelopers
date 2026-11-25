@@ -2,7 +2,7 @@
 
 **Setup:** set `OPS_USERNAME` and `OPS_PASSWORD` in the server environment (see README), run `npm run dev`, open `http://localhost:4173`, and reset the demo. State up front that all sites, locations and operational figures are fictional.
 
-1. **Discover (45 sec):** open Explore. Show the four fictional sites with different availability labels and facility summaries. Filter Available.
+1. **Discover (45 sec):** open Explore and tap **Use my location** (or choose an area if permission is declined). Show the eight fictional demo sites in Pune and Bengaluru sorted by straight-line distance, the **Demo** freshness chips and the "not a real facility" labels. Optionally open the map. Filter by city or status.
 2. **Compare (30 sec):** open Lakeview Artificial Pond. Review facilities, arrival guidance and the simulated location notice.
 3. **Reserve (75 sec):** choose a time, enter demo name/email and group size four. Confirm the persisted booking reference.
 4. **Visit and support (60 sec):** open My booking, show confirmation and reference; request senior-citizen assistance and point out the returned request reference.

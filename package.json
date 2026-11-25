@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "node server/index.js", "start": "node server/index.js", "check": "node --check server/index.js && node --check server/store.js && node --check server/apify.js && node --check src.js", "test": "node --test" },
+  "scripts": { "dev": "node server/index.js", "start": "node server/index.js", "check": "node --check server/index.js && node --check server/store.js && node --check server/status-source.js && node --check server/apify.js && node --check src.js", "test": "node --test" },
   "engines": { "node": ">=20" }
 }

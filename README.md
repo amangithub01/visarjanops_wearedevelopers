@@ -2,7 +2,23 @@
 
 **Your visarjan, thoughtfully organised.** A mobile-first civic-tech demo that connects immersion-site discovery, slot booking, a booking pass and assistance requests. The interface uses a warm ivory and saffron Ganeshotsav theme with subtle rangoli-inspired artwork and responsive layouts.
 
-> **Demo boundary:** the four Pune site names, locations, operating information, availability, queues and facilities are fictional. They are not municipal sites or live operational information. The current local demo does not connect to municipal systems, GPS, map tiles, email, SMS, QR scanners or staff identity services. Apify is an optional, manually started import for staging public-source results; it does not update site listings.
+> **Demo boundary:** the eight demo sites (four in Pune, four in Bengaluru), their names, coordinates, operating information, availability, queues and facilities are fictional. Coordinates are synthetic points in real neighbourhoods so distance sorting can be demonstrated; they do not mark real facilities, so directions are turned off. No site status is live: the app does not connect to municipal systems or any live status feed. Location is used only in the visitor's browser after they tap **Use my location**. The optional map loads tiles from the OpenFreeMap public instance. Apify is an optional, manually started import for staging public-source results; it does not update site listings.
+
+## Find sites near me
+
+Explore opens with **Use my location** and a manual **Choose an area** fallback. Nothing is requested on page load.
+
+- **One-time lookup:** a single `navigator.geolocation.getCurrentPosition` call after the tap (no `watchPosition`, low accuracy, 10-second timeout). Denied, unavailable or timed-out requests show a plain-language message pointing to the area picker.
+- **Privacy:** distances are calculated in the browser from the public site list. Visitor coordinates stay in page memory only; they are never sent to the server, logged or stored. Geolocation requires a secure context: `localhost` qualifies for local demos; any shared deployment needs HTTPS.
+- **Sorting:** straight-line (haversine) distance, labelled as such. No driving times are shown.
+- **Site cards:** name, area, distance, facilities, a data-freshness chip and actions. Demo sites show **Book arrival**; **Directions** appears only for sites with verified coordinates (none today).
+- **Status labels:** **Live** (authorised feed, ≤5 min old), **Delayed** (authorised feed or staff update, ≤30 min old), **Demo** (simulated) or **Unavailable** (no source/timestamp, invalid or stale). Queue and wait values are shown only alongside a source and timestamp. See `server/status-source.js`.
+- **Map (optional):** **Show map** lazy-loads MapLibre GL JS 6.19.0 (vendored in `public/vendor/`, BSD-3-Clause) with OpenFreeMap's `liberty` style. No API key or billing account. Opening the map requests tiles for the visible area from `tiles.openfreemap.org`; if a location was shared, that includes tiles around it.
+
+### What a real deployment still needs
+
+- **Verified site coordinates:** each real site needs coordinates from an authoritative source (for example a municipal notice) or independent verification, plus `coordinates.kind: 'verified'`, before distance and directions are presented as real. A map link alone is not proof that a site is operating.
+- **A genuinely live status source:** an authorised municipal or site-operator feed (implementing `createStatusSource` in `server/status-source.js`) or authenticated staff updates. Staff updates are labelled Delayed, never Live. Scraped pages must not be treated as live queue data.
 
 ## Run locally
 
@@ -14,7 +30,13 @@ $env:OPS_PASSWORD = 'choose-a-unique-password-at-least-12-characters'
 npm run dev
 ```
 
-Open [http://localhost:4173](http://localhost:4173). The API creates `data/demo.json` at first startup. Set `PORT` to change the port. Set `DEMO_MODE=false` to disable the public demo-reset endpoint.
+macOS / Linux:
+
+```bash
+OPS_USERNAME=site-ops OPS_PASSWORD='choose-a-unique-password-at-least-12-characters' npm run dev
+```
+
+Open [http://localhost:4173](http://localhost:4173) (use `localhost` so browser geolocation is allowed without HTTPS). The API creates `data/demo.json` at first startup; set `DATA_DIR` to keep it elsewhere. Stores created before this version are upgraded in place: existing bookings and slot counts are kept, coordinates and provenance are added. Set `PORT` to change the port. Set `DEMO_MODE=false` to disable the public demo-reset endpoint.
 
 The **Staff sign in** link opens the operations login. Use the username/password set in the server environment above. Passwords are not stored in the repository or demo database. If either variable is missing (or the password is shorter than 12 characters), operations sign-in stays disabled. Sessions use an HttpOnly, SameSite=Strict cookie, expire after eight hours and are kept in memory until expiry or sign-out; restarting the server clears them. The demo server listens on `127.0.0.1`. Configure a real identity provider, HTTPS and persistent session controls before any shared deployment.
 
@@ -37,7 +59,7 @@ To reset demonstration reservations, use **Reset demo data** on the booking page
 
 ## Demo walkthrough
 
-1. Open Explore and compare the four explicitly fictional sites.
+1. Open Explore, tap **Use my location** (or choose an area) and compare the eight explicitly fictional sites sorted by distance. Optionally open the map.
 2. Open Lakeview Artificial Pond and choose an arrival window.
 3. Enter a name, email and group size. The API validates and reserves capacity before confirming.
 4. View the booking page and reference.
@@ -65,11 +87,11 @@ The demo storage file is for local demonstration only: simultaneous processes, d
 
 ## Verification
 
-With the demo server running in one terminal, run `npm test` in another terminal for the local API smoke test (including concurrent capacity reservation). Run `npm run check` for Node source syntax validation. This is not a complete backend, authorization, QR-scan or browser end-to-end suite; accessibility review and broader tests are needed before production readiness.
+With the demo server running in one terminal, run `npm test` in another terminal for the local API smoke test (including concurrent capacity reservation) and the status-freshness unit tests. The API test resets demo data, so point the test server at a throwaway store, for example `DATA_DIR=/tmp/visarjanops-test PORT=4173 npm run dev`. Run `npm run check` for Node source syntax validation. This is not a complete backend, authorization, QR-scan or browser end-to-end suite; accessibility review and broader tests are needed before production readiness.
 
 ## Licensing and attribution
 
-This repository has no runtime npm dependencies. The application code is offered under MIT; see `LICENSE`. The UI uses Google Fonts via the fonts.googleapis.com service when online (Poppins, Inter and Noto Sans Devanagari, SIL Open Font License 1.1); system sans-serif fallbacks work without a network connection. Source listings and full license text are in `THIRD_PARTY_NOTICES.md`. No map tiles or map data are currently loaded.
+This repository has no runtime npm dependencies. The application code is offered under MIT; see `LICENSE`. The UI uses Google Fonts via the fonts.googleapis.com service when online (Poppins, Inter and Noto Sans Devanagari, SIL Open Font License 1.1); system sans-serif fallbacks work without a network connection. The optional map uses vendored MapLibre GL JS (BSD-3-Clause, `public/vendor/MAPLIBRE-LICENSE.txt`) and OpenFreeMap tiles built from OpenStreetMap data (© OpenStreetMap contributors, ODbL); attribution is shown on the map. Source listings and full license text are in `THIRD_PARTY_NOTICES.md`.
 
 The Operations route requires configured staff credentials and shows fictional site data alongside the optional manual Apify import control. It does not provide site editing or approve imported data into public listings. The header uses the Ganesh logo supplied by the user, cropped to fit the brand mark.
 
