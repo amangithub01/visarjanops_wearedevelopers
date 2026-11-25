@@ -26,10 +26,12 @@ test('authorised feed is live when fresh, delayed when aging and unavailable whe
   assert.equal(feed(45), 'unavailable');
 });
 
-test('staff updates are never labeled live', () => {
-  const staff = m => classifyStatus(site({ kind: 'staff-update', source: 'Site staff', observedAt: minutesAgo(m) }), now).freshness;
-  assert.equal(staff(1), 'delayed');
-  assert.equal(staff(45), 'unavailable');
+test('authenticated staff updates are live only while fresh', () => {
+  const staff = m => classifyStatus(site({ kind: 'staff-update', source: 'Site staff', observedAt: minutesAgo(m) }), now);
+  assert.equal(staff(1).freshness, 'live');
+  assert.equal(staff(1).label, 'Live · staff update');
+  assert.equal(staff(15).freshness, 'delayed');
+  assert.equal(staff(45).freshness, 'unavailable');
 });
 
 test('future timestamps and unknown source kinds are rejected', () => {

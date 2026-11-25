@@ -6,7 +6,7 @@ async function request(path,options={}){const response=await fetch(base+path,{..
 async function opsRequest(path,options={}){const response=await fetch(apiRoot+path,{...options,headers:{'content-type':'application/json',...(options.headers||{})}});return {status:response.status,body:await response.json(),headers:response.headers};}
 test('demo booking persists, protects recovery, enforces capacity, and accepts assistance',async()=>{
  const reset=await request('/demo/reset',{method:'POST',body:'{}'});assert.equal(reset.status,200);
- const sites=await request('/sites');assert.equal(sites.status,200);assert.equal(sites.body.data.length,8);
+ const sites=await request('/sites');assert.equal(sites.status,200);assert.equal(sites.body.data.filter(s=>s.provenance.kind==='demo').length,8,'start the test server with DEMO_SITES=true');
  const payload=i=>JSON.stringify({siteId:'lakeview',slot:'6:00 – 6:30 PM',people:3,name:`Demo ${i}`,email:`demo${i}@example.test`});
  const responses=await Promise.all([0,1,2,3].map(i=>request('/bookings',{method:'POST',body:payload(i)})));
  assert.equal(responses.filter(r=>r.status===201).length,3);assert.equal(responses.filter(r=>r.status===409).length,1);
@@ -19,15 +19,31 @@ test('demo booking persists, protects recovery, enforces capacity, and accepts a
  const status=await request(`/assistance-requests/${help.body.data.reference}`);assert.equal(status.body.data.status,'Received');
  await request('/demo/reset',{method:'POST',body:'{}'});
 });
-test('public sites carry labeled demo coordinates and never expose unsourced or invented status',async()=>{
+test('public sites keep provenance and never expose unsourced or invented status',async()=>{
  const {status,body}=await request('/sites');assert.equal(status,200);
  for(const s of body.data){
-  assert.equal(s.coordinates.kind,'synthetic');assert.ok(Number.isFinite(s.coordinates.lat)&&Number.isFinite(s.coordinates.lng));
-  assert.equal(s.provenance.kind,'demo');
-  for(const raw of ['distance','waiting','wait','status','capacity'])assert.equal(raw in s,false,`${raw} must not be public`);
-  assert.equal(s.statusInfo.freshness,'demo');assert.ok(s.statusInfo.source);assert.ok(Date.parse(s.statusInfo.observedAt));
+  for(const raw of ['distance','waiting','wait','status','capacity','rawText','quality'])assert.equal(raw in s,false,`${raw} must not be public`);
+  if(s.provenance.kind==='demo'){assert.equal(s.coordinates.kind,'synthetic');assert.equal(s.statusInfo.freshness,'demo');continue;}
+  assert.equal(s.provenance.kind,'official-source');assert.equal(s.city,'Mumbai');
+  assert.match(s.provenance.sourceUrl,/^https:\/\/portal\.mcgm\.gov\.in\//);assert.equal(s.provenance.festivalYear,2025);assert.equal(s.provenance.verificationStatus,'PENDING_REVIEW');
+  if(s.coordinates){assert.equal(s.coordinates.kind,'official-link');assert.ok(s.coordinates.lat>18.85&&s.coordinates.lat<19.35&&s.coordinates.lng>72.75&&s.coordinates.lng<73.05);}
+  if(s.statusInfo.freshness!=='unavailable')assert.equal(s.statusInfo.source,'VisarjanOps site staff');
  }
+ const official=body.data.filter(s=>s.provenance.kind==='official-source');assert.ok(official.length>=200);assert.ok(official.filter(s=>s.coordinates).length>=100);
  const bengaluru=await request('/sites?q=Bengaluru');assert.equal(bengaluru.body.data.length,4);
+ const booking=await request('/bookings',{method:'POST',body:JSON.stringify({siteId:official[0].id,slot:'5:00 – 5:30 PM',people:2,name:'Demo',email:'demo@example.test'})});assert.equal(booking.status,409);
+});
+test('only signed-in staff can post site status, and it shows publicly as live with its source',async()=>{
+ const target=(await request('/sites')).body.data.find(s=>s.provenance.kind==='official-source').id;
+ const anonymous=await opsRequest(`/operations/sites/${target}/status`,{method:'POST',body:JSON.stringify({status:'Busy'})});assert.equal(anonymous.status,401);
+ if(!process.env.OPS_USERNAME||!process.env.OPS_PASSWORD)return;
+ const login=await opsRequest('/operations/auth/login',{method:'POST',body:JSON.stringify({username:process.env.OPS_USERNAME,password:process.env.OPS_PASSWORD})});const cookie=login.headers.get('set-cookie').split(';')[0];
+ const invalid=await opsRequest(`/operations/sites/${target}/status`,{method:'POST',headers:{cookie},body:JSON.stringify({status:'Empty'})});assert.equal(invalid.status,400);
+ const badNumber=await opsRequest(`/operations/sites/${target}/status`,{method:'POST',headers:{cookie},body:JSON.stringify({status:'Busy',waiting:-3})});assert.equal(badNumber.status,400);
+ const posted=await opsRequest(`/operations/sites/${target}/status`,{method:'POST',headers:{cookie},body:JSON.stringify({status:'Busy',waiting:35,waitMinutes:20})});assert.equal(posted.status,200);
+ const site=(await request(`/sites/${target}`)).body.data;
+ assert.equal(site.statusInfo.freshness,'live');assert.equal(site.statusInfo.status,'Busy');assert.equal(site.statusInfo.wait,'~20 min');assert.equal(site.statusInfo.source,'VisarjanOps site staff');
+ await opsRequest('/operations/auth/logout',{method:'POST',headers:{cookie}});
 });
 test('operations site data is protected by a staff session',async()=>{
  const denied=await opsRequest('/operations/sites');assert.equal(denied.status,401);
@@ -36,7 +52,7 @@ test('operations site data is protected by a staff session',async()=>{
  const rejected=await opsRequest('/operations/auth/login',{method:'POST',body:JSON.stringify({username:process.env.OPS_USERNAME,password:'wrong-password'})});assert.equal(rejected.status,401);
  const login=await opsRequest('/operations/auth/login',{method:'POST',body:JSON.stringify({username:process.env.OPS_USERNAME,password:process.env.OPS_PASSWORD})});assert.equal(login.status,200);assert.equal(login.body.data.role,'operations');
  const cookie=login.headers.get('set-cookie')?.split(';')[0];assert.match(cookie||'',/^visarjanops_ops=/);
- const allowed=await opsRequest('/operations/sites',{headers:{cookie}});assert.equal(allowed.status,200);assert.equal(allowed.body.data.length,8);
+ const allowed=await opsRequest('/operations/sites',{headers:{cookie}});assert.equal(allowed.status,200);assert.ok(allowed.body.data.length>=208);assert.equal(allowed.body.sources[0].authority,'Brihanmumbai Municipal Corporation (MCGM)');
  const logout=await opsRequest('/operations/auth/logout',{method:'POST',headers:{cookie}});assert.equal(logout.status,200);
  const after=await opsRequest('/operations/sites',{headers:{cookie}});assert.equal(after.status,401);
 });

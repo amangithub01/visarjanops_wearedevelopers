@@ -23,7 +23,7 @@ export function classifyStatus(site, now = Date.now()) {
   if (source.kind === 'demo') return { freshness: FRESHNESS.DEMO, label: LABELS.demo, reason: null, ...values };
   if (source.kind !== 'authorised-feed' && source.kind !== 'staff-update') return unavailable('Unrecognised status source.');
   const age = now - observed;
-  if (age <= LIVE_MAX_AGE_MS && source.kind === 'authorised-feed') return { freshness: FRESHNESS.LIVE, label: LABELS.live, reason: null, ...values };
+  if (age <= LIVE_MAX_AGE_MS) return { freshness: FRESHNESS.LIVE, label: source.kind === 'staff-update' ? 'Live · staff update' : LABELS.live, reason: null, ...values };
   if (age <= DELAYED_MAX_AGE_MS) return { freshness: FRESHNESS.DELAYED, label: source.kind === 'staff-update' ? 'Delayed · staff update' : LABELS.delayed, reason: null, ...values };
   return unavailable('The last update is too old to rely on.');
 }

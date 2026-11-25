@@ -2,7 +2,21 @@
 
 **Your visarjan, thoughtfully organised.** A mobile-first civic-tech demo that connects immersion-site discovery, slot booking, a booking pass and assistance requests. The interface uses a warm ivory and saffron Ganeshotsav theme with subtle rangoli-inspired artwork and responsive layouts.
 
-> **Demo boundary:** the eight demo sites (four in Pune, four in Bengaluru), their names, coordinates, operating information, availability, queues and facilities are fictional. Coordinates are synthetic points in real neighbourhoods so distance sorting can be demonstrated; they do not mark real facilities, so directions are turned off. No site status is live: the app does not connect to municipal systems or any live status feed. Location is used only in the visitor's browser after they tap **Use my location**. The optional map loads tiles from the OpenFreeMap public instance. Apify is an optional, manually started import for staging public-source results; it does not update site listings.
+> **Data boundary:** public sites come from **MCGM's published "Arrangement of Ganeshotsav 2025" list** (Mumbai artificial ponds, downloaded from the [MCGM portal](https://portal.mcgm.gov.in/irj/portal/anonymous/qlGanpatiDeQR)). It is a **past-season** list, extracted automatically from a scanned PDF and **pending operator review**: names may be incomplete and some locations could not be read. Site **status is shown only when signed-in staff post it** in Operations; nothing is inferred or simulated for visitors. Location is used only in the visitor's browser after they tap **Use my location**. The map loads tiles from the OpenFreeMap public instance. Eight fictional Pune/Bengaluru sites remain available for booking demos and tests only when the server runs with `DEMO_SITES=true`. Apify is an optional, manually started import for staging public-source results; it does not update site listings.
+
+## Official site data (MCGM)
+
+`server/sources/mcgm-ganeshotsav-2025.json` is generated, not hand-written:
+
+```bash
+swift scripts/ocr-pdf.swift "<MCGM Ganeshotsav PDF>" > /tmp/mcgm-ocr.txt   # macOS on-device OCR
+node scripts/import-mcgm.mjs /tmp/mcgm-ocr.txt --resolve                  # parse + read MCGM map links
+```
+
+- Every record keeps the authority, source URL, source document, publication date, festival year, extraction time, original OCR text and a `PENDING_REVIEW` status. Missing values stay `null`.
+- `--resolve` makes one request per MCGM-published `maps.app.goo.gl` short link (no redirect following, 0.4 s apart, cached in `.cache/`) and reads coordinates from the link it points to: place pin, search coordinates or a Plus Code decoded locally. Coordinates outside Mumbai are discarded. A map link is not proof that a site is operating this season.
+- 2025 run: 208 records from 288 listed ponds (some rows list several ponds); 105 with coordinates, 86 links unreadable from OCR, 77 names unreadable (shown as "MCGM artificial pond N"). One repeated link merged; one possible duplicate flagged.
+- Re-running the import updates the store on next start without overwriting staff status posts or any record an operator has verified or rejected. Municipal sites are not bookable.
 
 ## Find sites near me
 
@@ -11,14 +25,16 @@ Explore opens with **Use my location** and a manual **Choose an area** fallback.
 - **One-time lookup:** a single `navigator.geolocation.getCurrentPosition` call after the tap (no `watchPosition`, low accuracy, 10-second timeout). Denied, unavailable or timed-out requests show a plain-language message pointing to the area picker.
 - **Privacy:** distances are calculated in the browser from the public site list. Visitor coordinates stay in page memory only; they are never sent to the server, logged or stored. Geolocation requires a secure context: `localhost` qualifies for local demos; any shared deployment needs HTTPS.
 - **Sorting:** straight-line (haversine) distance, labelled as such. No driving times are shown.
-- **Site cards:** name, area, distance, facilities, a data-freshness chip and actions. Demo sites show **Book arrival**; **Directions** appears only for sites with verified coordinates (none today).
-- **Status labels:** **Live** (authorised feed, ≤5 min old), **Delayed** (authorised feed or staff update, ≤30 min old), **Demo** (simulated) or **Unavailable** (no source/timestamp, invalid or stale). Queue and wait values are shown only alongside a source and timestamp. See `server/status-source.js`.
-- **Map (optional):** **Show map** lazy-loads MapLibre GL JS 6.19.0 (vendored in `public/vendor/`, BSD-3-Clause) with OpenFreeMap's `liberty` style. No API key or billing account. Opening the map requests tiles for the visible area from `tiles.openfreemap.org`; if a location was shared, that includes tiles around it.
+- **Map-first layout:** a full map with a pin per located site (coloured by status freshness) beside a compact list of the nearest sites, 20 at a time with **Show more**. Selecting a row flies the map to its pin; selecting a pin highlights the row. Sites without a readable location are listed separately. **List only** hides the map for slow connections.
+- **Directions** open the map link MCGM published for that site. Municipal sites show "No online booking"; arrival booking exists only for demo sites.
+- **Status labels:** **Live** (staff update or authorised feed ≤5 min old), **Delayed** (≤30 min old), **Demo** (simulated, demo sites only) or **Unavailable** (no report, invalid or stale). Queue and wait values are shown only alongside their source and time. See `server/status-source.js`.
+- **Staff status updates:** signed-in staff post Open / Busy / Near capacity / Closed, people waiting and wait time per site in Operations (`POST /api/v1/operations/sites/{id}/status`). Visitors see it within about 15 seconds.
+- **Map:** MapLibre GL JS 6.19.0 (vendored in `public/vendor/`, BSD-3-Clause) with OpenFreeMap's `liberty` style, loaded when Explore opens. No API key or billing account. The map requests tiles for the visible area from `tiles.openfreemap.org`; if a location was shared, that includes tiles around it.
 
 ### What a real deployment still needs
 
-- **Verified site coordinates:** each real site needs coordinates from an authoritative source (for example a municipal notice) or independent verification, plus `coordinates.kind: 'verified'`, before distance and directions are presented as real. A map link alone is not proof that a site is operating.
-- **A genuinely live status source:** an authorised municipal or site-operator feed (implementing `createStatusSource` in `server/status-source.js`) or authenticated staff updates. Staff updates are labelled Delayed, never Live. Scraped pages must not be treated as live queue data.
+- **Operator verification and this season's list:** imported sites are `PENDING_REVIEW` and from 2025. An authorised operator must review names and locations (an approve/reject screen is not built yet), and the current season's MCGM list must be imported when published.
+- **Staff at sites, or an authorised feed:** status is only as live as staff posting it. Real use needs individual staff accounts and roles (today there is one shared login), or an authorised municipal/site-operator feed implementing `createStatusSource` in `server/status-source.js`. Scraped pages must never be treated as live queue data.
 
 ## Run locally
 
@@ -59,7 +75,7 @@ To reset demonstration reservations, use **Reset demo data** on the booking page
 
 ## Demo walkthrough
 
-1. Open Explore, tap **Use my location** (or choose an area) and compare the eight explicitly fictional sites sorted by distance. Optionally open the map.
+1. Open Explore, tap **Use my location** (or choose an area) and see the nearest MCGM artificial ponds on the map. Select a row to fly to its pin.
 2. Open Lakeview Artificial Pond and choose an arrival window.
 3. Enter a name, email and group size. The API validates and reserves capacity before confirming.
 4. View the booking page and reference.
@@ -87,7 +103,7 @@ The demo storage file is for local demonstration only: simultaneous processes, d
 
 ## Verification
 
-With the demo server running in one terminal, run `npm test` in another terminal for the local API smoke test (including concurrent capacity reservation) and the status-freshness unit tests. The API test resets demo data, so point the test server at a throwaway store, for example `DATA_DIR=/tmp/visarjanops-test PORT=4173 npm run dev`. Run `npm run check` for Node source syntax validation. This is not a complete backend, authorization, QR-scan or browser end-to-end suite; accessibility review and broader tests are needed before production readiness.
+With the server running with `DEMO_SITES=true` in one terminal, run `npm test` in another terminal for the local API smoke test (including concurrent capacity reservation) and the status-freshness unit tests. The API test resets demo data, so point the test server at a throwaway store, for example `DEMO_SITES=true DATA_DIR=/tmp/visarjanops-test PORT=4173 npm run dev`. Run `npm run check` for Node source syntax validation. This is not a complete backend, authorization, QR-scan or browser end-to-end suite; accessibility review and broader tests are needed before production readiness.
 
 ## Licensing and attribution
 

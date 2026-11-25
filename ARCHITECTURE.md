@@ -30,10 +30,11 @@ PostGIS supports nearby-site discovery and spatial indexes. Redis should be adde
 ## Nearby discovery and site status (implemented)
 
 - **Location stays in the browser.** Explore requests geolocation once, only after the visitor taps **Use my location**. The client computes haversine distance against the public site list. Coordinates are never sent to the API, logged or persisted. The manual area picker sorts from a demo area centre instead.
-- **Site coordinates and provenance.** Each site record has `coordinates {lat, lng, kind}` and `provenance {kind, authority, sourceUrl, festivalYear, verifiedAt}`. Today every site is `kind: 'synthetic'` / `provenance.kind: 'demo'`. Directions links render only for `coordinates.kind === 'verified'`. Store schema v2 migrates v1 demo files in place, preserving bookings and slot counts.
-- **Status classification (`server/status-source.js`).** `classifyStatus` returns `live | delayed | demo | unavailable` and releases status, waiting and wait values only with a named source and observation time. Live requires an `authorised-feed` snapshot ≤5 minutes old; staff updates are at most Delayed; anything without a source/timestamp, from an unknown source kind, future-dated or older than 30 minutes is Unavailable. Public endpoints and the SSE stream send only the classified `statusInfo`, not raw demo fields.
+- **Site catalogue and provenance.** Public sites come from generated source files in `server/sources/` (today the MCGM Ganeshotsav 2025 list, built by `scripts/import-mcgm.mjs`). Each record has `coordinates {lat, lng, kind: 'official-link', method}` or `null`, and `provenance {authority, sourceUrl, sourceDocument, publishedAt, festivalYear, seasonStatus, verificationStatus: 'PENDING_REVIEW'}`. Store schema v3 re-syncs the catalogue when a source file changes, keeping bookings, staff status posts and any operator-verified or rejected record. Fictional demo sites (`coordinates.kind: 'synthetic'`) load only with `DEMO_SITES=true`. Bookings are refused for non-demo sites.
+- **Status classification (`server/status-source.js`).** `classifyStatus` returns `live | delayed | demo | unavailable` and releases status, waiting and wait values only with a named source and observation time. Live requires a staff update or `authorised-feed` snapshot ≤5 minutes old; anything without a source/timestamp, from an unknown source kind, future-dated or older than 30 minutes is Unavailable. Public endpoints and the SSE stream send only the classified `statusInfo`, not raw demo fields.
 - **Future live source.** `createStatusSource()` is the adapter boundary for an authorised municipal or site-operator feed. No feed is connected; `connected` is always false and `fetchSnapshots()` refuses until a reviewed adapter is implemented. Scraped or imported data (for example Apify output) must never be classified as live.
-- **Map.** MapLibre GL JS is vendored under `public/vendor/` and imported dynamically only when the visitor opens the map. Tiles come from OpenFreeMap; no API key or billing.
+- **Staff status.** `POST /api/v1/operations/sites/{id}/status` (session required; status Open/Busy/Near capacity/Closed, optional waiting 0–5000 and waitMinutes 0–600) records `statusSource {kind: 'staff-update', observedAt}`. The SSE stream pushes the classified result to visitors.
+- **Map.** MapLibre GL JS is vendored under `public/vendor/` and imported dynamically on Explore. The map element is created once and moved between renders; markers are re-synced to the current filters. Tiles come from OpenFreeMap; no API key or billing.
 
 ## API in the demo
 
@@ -52,7 +53,8 @@ PostGIS supports nearby-site discovery and spatial indexes. Redis should be adde
 | GET | `/api/v1/operations/auth/session` | Report whether the current browser has an operations session |
 | POST | `/api/v1/operations/auth/login` | Sign into operations with configured server credentials |
 | POST | `/api/v1/operations/auth/logout` | End the current operations session |
-| GET | `/api/v1/operations/sites` | Session-protected operations site overview |
+| GET | `/api/v1/operations/sites` | Session-protected site list with classified status and source summaries |
+| POST | `/api/v1/operations/sites/{siteId}/status` | Session-protected staff status update |
 | GET | `/api/v1/operations/apify/status` | Session-protected Apify configuration and latest staged import |
 | POST | `/api/v1/operations/apify/run` | Session-protected manual Actor run; stage capped results for review |
 
