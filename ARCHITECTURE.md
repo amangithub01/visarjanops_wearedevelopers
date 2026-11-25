@@ -27,12 +27,23 @@ Use a Node.js modular monolith; do not add a Java/Spring Boot backend. Package d
 
 PostGIS supports nearby-site discovery and spatial indexes. Redis should be added only for a defined cache or ephemeral workload. SSE can publish queue snapshots with timestamp, source and clear stale-data state. Keep map/routing integrations behind configuration and interfaces. Treat any simulated queue or facility detail as demo data until integrated with an authorised source.
 
+## Nearby discovery and site status (implemented)
+
+- **Location stays in the browser.** Explore requests geolocation once, only after the visitor taps **Use my location**. The client computes haversine distance against the public site list. Coordinates are never sent to the API, logged or persisted. The manual area picker sorts from a demo area centre instead.
+- **Site catalogue and provenance.** Public sites come from generated source files in `server/sources/` (today the MCGM Ganeshotsav 2025 list, built by `scripts/import-mcgm.mjs`). Each record has `coordinates {lat, lng, kind: 'official-link', method}` or `null`, and `provenance {authority, sourceUrl, sourceDocument, publishedAt, festivalYear, seasonStatus, verificationStatus: 'PENDING_REVIEW'}`. Store schema v3 re-syncs the catalogue when a source file changes, keeping bookings, staff status posts and any operator-verified or rejected record. Fictional demo sites (`coordinates.kind: 'synthetic'`) load only with `DEMO_SITES=true`. Bookings are refused for non-demo sites.
+- **Status classification (`server/status-source.js`).** `classifyStatus` returns `live | delayed | demo | unavailable` and releases status, waiting and wait values only with a named source and observation time. Live requires a staff update or `authorised-feed` snapshot ≤5 minutes old; anything without a source/timestamp, from an unknown source kind, future-dated or older than 30 minutes is Unavailable. Public endpoints and the SSE stream send only the classified `statusInfo`, not raw demo fields.
+- **Future live source.** `createStatusSource()` is the adapter boundary for an authorised municipal or site-operator feed. No feed is connected; `connected` is always false and `fetchSnapshots()` refuses until a reviewed adapter is implemented. Scraped or imported data (for example Apify output) must never be classified as live.
+- **Staff status.** `POST /api/v1/operations/sites/{id}/status` (session required; status Open/Busy/Near capacity/Closed, optional waiting 0–5000 and waitMinutes 0–600) records `statusSource {kind: 'staff-update', observedAt}`. The SSE stream pushes the classified result to visitors.
+- **Feature flags (`server/flags.js`).** Official `@flagsmith/nodejs` SDK in local-evaluation mode with a server-side key; fallback values keep existing features on and new ones off. Routes check the session before any flag.
+- **Voice (`server/sarvam.js`).** Saaras v4 (translate) and Bulbul v4 Flash over REST, with a daily call budget, per-visitor limits and same-origin checks. Spoken text comes from fixed templates and our own data only.
+- **Map.** MapLibre GL JS is vendored under `public/vendor/` and imported dynamically on Explore. The map element is created once and moved between renders; markers are re-synced to the current filters. Tiles come from OpenFreeMap; no API key or billing.
+
 ## API in the demo
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/v1/public/sites` | Fictional demo site list; optional `q` search |
-| GET | `/api/v1/public/sites/{siteId}` | One demo site |
+| GET | `/api/v1/public/sites` | Demo site list with coordinates, provenance and classified `statusInfo`; optional `q` search (name, area, city) |
+| GET | `/api/v1/public/sites/{siteId}` | One demo site (same public shape) |
 | POST | `/api/v1/public/bookings` | Validated capacity reservation |
 | GET | `/api/v1/public/bookings/{reference}?key=…` | Recover a booking with its secret key |
 | GET | `/api/v1/public/bookings/{reference}/pass?key=…` | Pass metadata with the booking recovery key (demo payload only) |
@@ -44,7 +55,13 @@ PostGIS supports nearby-site discovery and spatial indexes. Redis should be adde
 | GET | `/api/v1/operations/auth/session` | Report whether the current browser has an operations session |
 | POST | `/api/v1/operations/auth/login` | Sign into operations with configured server credentials |
 | POST | `/api/v1/operations/auth/logout` | End the current operations session |
-| GET | `/api/v1/operations/sites` | Session-protected operations site overview |
+| GET | `/api/v1/operations/sites` | Session-protected site list with classified status and source summaries |
+| POST | `/api/v1/operations/sites/{siteId}/status` | Session-protected staff status update; requires the `ops_status_updates` flag |
+| POST | `/api/v1/operations/checkin` | Session-protected gate scan (QR payload or reference + code); entry → exit → refused; requires `ops_status_updates` |
+| GET | `/api/v1/public/features` | Public flag values (nearby discovery, map, voice) |
+| POST | `/api/v1/public/voice/search` | Audio → Sarvam speech-to-text → matched area/locality/site; flag, budget, rate and origin limited |
+| POST | `/api/v1/public/voice/speak` | Spoken summary of up to 3 listed sites (Sarvam text-to-speech) |
+| GET | `/api/v1/health` | Monitoring status for NudgeBee; bearer `OPS_MONITOR_TOKEN` or staff session |
 | GET | `/api/v1/operations/apify/status` | Session-protected Apify configuration and latest staged import |
 | POST | `/api/v1/operations/apify/run` | Session-protected manual Actor run; stage capped results for review |
 
