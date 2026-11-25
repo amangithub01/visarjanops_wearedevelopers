@@ -56,3 +56,17 @@ test('operations site data is protected by a staff session',async()=>{
  const logout=await opsRequest('/operations/auth/logout',{method:'POST',headers:{cookie}});assert.equal(logout.status,200);
  const after=await opsRequest('/operations/sites',{headers:{cookie}});assert.equal(after.status,401);
 });
+test('public feature flags are exposed without secrets and voice refuses when off or cross-site',async()=>{
+ const features=await request('/features');assert.equal(features.status,200);assert.deepEqual(Object.keys(features.body.data).sort(),['mapView','nearbyDiscovery','voiceAssistance']);
+ const crossSite=await fetch(`${base}/voice/search`,{method:'POST',headers:{'content-type':'audio/webm',origin:'https://evil.example'},body:Buffer.alloc(5000)});assert.equal(crossSite.status,403);
+ if(!features.body.data.voiceAssistance){const off=await fetch(`${base}/voice/search`,{method:'POST',headers:{'content-type':'audio/webm'},body:Buffer.alloc(5000)});assert.equal(off.status,503);}
+});
+test('health endpoint needs the monitor token or a staff session and exposes no secrets',async()=>{
+ const anonymous=await fetch(`${apiRoot}/health`);assert.equal(anonymous.status,401);
+ const wrong=await fetch(`${apiRoot}/health`,{headers:{authorization:'Bearer not-the-token-not-the-token'}});assert.equal(wrong.status,401);
+ if(!process.env.OPS_MONITOR_TOKEN)return;
+ const ok=await fetch(`${apiRoot}/health`,{headers:{authorization:`Bearer ${process.env.OPS_MONITOR_TOKEN}`}});assert.equal(ok.status,200);
+ const text=await ok.text();const body=JSON.parse(text).data;
+ assert.equal(body.status,'ok');assert.ok(body.store.sites>=208);assert.equal(typeof body.uptimeSeconds,'number');
+ for(const secret of [process.env.OPS_MONITOR_TOKEN,process.env.OPS_PASSWORD,process.env.SARVAM_API_KEY].filter(Boolean))assert.equal(text.includes(secret),false);
+});

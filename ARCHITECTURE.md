@@ -34,6 +34,8 @@ PostGIS supports nearby-site discovery and spatial indexes. Redis should be adde
 - **Status classification (`server/status-source.js`).** `classifyStatus` returns `live | delayed | demo | unavailable` and releases status, waiting and wait values only with a named source and observation time. Live requires a staff update or `authorised-feed` snapshot ≤5 minutes old; anything without a source/timestamp, from an unknown source kind, future-dated or older than 30 minutes is Unavailable. Public endpoints and the SSE stream send only the classified `statusInfo`, not raw demo fields.
 - **Future live source.** `createStatusSource()` is the adapter boundary for an authorised municipal or site-operator feed. No feed is connected; `connected` is always false and `fetchSnapshots()` refuses until a reviewed adapter is implemented. Scraped or imported data (for example Apify output) must never be classified as live.
 - **Staff status.** `POST /api/v1/operations/sites/{id}/status` (session required; status Open/Busy/Near capacity/Closed, optional waiting 0–5000 and waitMinutes 0–600) records `statusSource {kind: 'staff-update', observedAt}`. The SSE stream pushes the classified result to visitors.
+- **Feature flags (`server/flags.js`).** Official `@flagsmith/nodejs` SDK in local-evaluation mode with a server-side key; fallback values keep existing features on and new ones off. Routes check the session before any flag.
+- **Voice (`server/sarvam.js`).** Saaras v4 (translate) and Bulbul v4 Flash over REST, with a daily call budget, per-visitor limits and same-origin checks. Spoken text comes from fixed templates and our own data only.
 - **Map.** MapLibre GL JS is vendored under `public/vendor/` and imported dynamically on Explore. The map element is created once and moved between renders; markers are re-synced to the current filters. Tiles come from OpenFreeMap; no API key or billing.
 
 ## API in the demo
@@ -54,7 +56,11 @@ PostGIS supports nearby-site discovery and spatial indexes. Redis should be adde
 | POST | `/api/v1/operations/auth/login` | Sign into operations with configured server credentials |
 | POST | `/api/v1/operations/auth/logout` | End the current operations session |
 | GET | `/api/v1/operations/sites` | Session-protected site list with classified status and source summaries |
-| POST | `/api/v1/operations/sites/{siteId}/status` | Session-protected staff status update |
+| POST | `/api/v1/operations/sites/{siteId}/status` | Session-protected staff status update; requires the `ops_status_updates` flag |
+| GET | `/api/v1/public/features` | Public flag values (nearby discovery, map, voice) |
+| POST | `/api/v1/public/voice/search` | Audio → Sarvam speech-to-text → matched area/locality/site; flag, budget, rate and origin limited |
+| POST | `/api/v1/public/voice/speak` | Spoken summary of up to 3 listed sites (Sarvam text-to-speech) |
+| GET | `/api/v1/health` | Monitoring status for NudgeBee; bearer `OPS_MONITOR_TOKEN` or staff session |
 | GET | `/api/v1/operations/apify/status` | Session-protected Apify configuration and latest staged import |
 | POST | `/api/v1/operations/apify/run` | Session-protected manual Actor run; stage capped results for review |
 

@@ -10,6 +10,14 @@
 
 The application itself has no npm runtime dependencies. Site artwork uses CSS and text glyphs created for this demo.
 
+### @flagsmith/nodejs 9.5.0 (npm)
+
+Official Flagsmith server SDK, MIT License, installed via npm (`package-lock.json`). Its dependencies pino, jsonpath-plus and undici-types are MIT; semver is ISC. https://github.com/Flagsmith/flagsmith-nodejs-client
+
+### Geocoding
+
+Voice search may look up a spoken Mumbai locality via OpenStreetMap Nominatim (https://nominatim.org, usage policy: max 1 request/second, identifying User-Agent, caching). Data © OpenStreetMap contributors, ODbL.
+
 ### MapLibre GL JS 6.19.0 (vendored)
 
 `public/vendor/maplibre-gl.mjs`, `maplibre-gl-worker.mjs` and `maplibre-gl.css` are unmodified distribution files from the `maplibre-gl` npm package (source maps references removed). License: BSD-3-Clause, full text in `public/vendor/MAPLIBRE-LICENSE.txt`. https://github.com/maplibre/maplibre-gl-js

@@ -36,6 +36,36 @@ Explore opens with **Use my location** and a manual **Choose an area** fallback.
 - **Operator verification and this season's list:** imported sites are `PENDING_REVIEW` and from 2025. An authorised operator must review names and locations (an approve/reject screen is not built yet), and the current season's MCGM list must be imported when published.
 - **Staff at sites, or an authorised feed:** status is only as live as staff posting it. Real use needs individual staff accounts and roles (today there is one shared login), or an authorised municipal/site-operator feed implementing `createStatusSource` in `server/status-source.js`. Scraped pages must never be treated as live queue data.
 
+## Sponsor integrations
+
+The server loads a local `.env` file on start (`server/env.js`; variables already set in the shell win). See `.env.example` for every variable. Never commit `.env`.
+
+### Flagsmith: feature flags
+
+Uses the official **`@flagsmith/nodejs`** SDK with **local evaluation**: the SDK downloads the environment once and refreshes it every 60 s (`FLAGSMITH_REFRESH_SECONDS`), so checking a flag makes no network call. That is about 43k requests a month, within the Free plan's 50k. Flags control rollout only; every staff route still checks the session first, and live site data stays in the app's API.
+
+| Flag | Fallback | Controls |
+|---|---|---|
+| `nearby_discovery` | on | "Use my location" and area sorting |
+| `map_view` | on | Explore map (off = list only) |
+| `apify_import` | on | Staff Apify run (still needs sign-in and Apify credentials) |
+| `voice_assistance` | **off** | Sarvam voice search and spoken answers |
+| `ops_status_updates` | **off** | Staff live-status posting |
+
+Setup: create a free project at app.flagsmith.com → Development environment → create the five features above (exact names, switched on) → **Settings → Keys → Server-side Environment Key** (starts with `ser.`) → put it in `.env` as `FLAGSMITH_SERVER_KEY`. Fallback values apply when Flagsmith is unconfigured, unreachable or a flag is missing; `FEATURE_FLAG_DEFAULTS=voice_assistance=on,ops_status_updates=on` changes those fallbacks for a local demo (Flagsmith values always win). Operations shows each flag's current state.
+
+### Sarvam AI: voice search
+
+**Ask by voice** (Explore) records up to 8 seconds only after a tap, sends it to Sarvam **Saaras v4** (`mode: translate`, with Mumbai area names as keyterms) and matches the English text to a listed area, locality or site. A spoken answer is generated with **Bulbul v4 Flash** in the language the visitor used (English, Hindi, Marathi or Kannada) from fixed templates and our own site data. Hindi/Marathi/Kannada templates need native-speaker review.
+
+- Needs `SARVAM_ENABLED=true`, `SARVAM_API_KEY` and the `voice_assistance` flag. Calls spend account credits: capped at `SARVAM_DAILY_CALL_LIMIT` (default 150) per server per day, 10 per visitor per 10 minutes, recordings ≤800 KB, silent recordings rejected before any call, same-origin requests only. Audio and transcripts are not logged or stored.
+- For a device location, the spoken answer has names and status only; distances are not sent to the server because they could reveal the visitor's position.
+- Spoken localities with no listed site (for example "Dadar") are centred using OpenStreetMap **Nominatim** (only the locality name is sent, bounded to Mumbai, ≤1 request/second, cached).
+
+### NudgeBee: health monitoring
+
+`GET /api/v1/health` returns service status, uptime, store health, flag mode and voice usage (no secrets, no visitor data). It requires `Authorization: Bearer <OPS_MONITOR_TOKEN>` (24+ characters) or a staff session. In NudgeBee, add a Workflow with an **HTTP Request** task (`integrations.http`): method GET, auth type Bearer, token = `OPS_MONITOR_TOKEN`, URL = your deployed app's `/api/v1/health`, on a schedule trigger; alert when `status_code` is not 200 or `body.data.status` is not `ok`. NudgeBee's cloud cannot reach `localhost`, so this needs a deployed (HTTPS) URL or a self-hosted NudgeBee on the same network. No NudgeBee workflow has been configured or verified yet.
+
 ## Run locally
 
 Requirements: Node.js 20 or later. The local demo starts without a database or external account; Apify is optional and requires an Apify account.
@@ -107,7 +137,7 @@ With the server running with `DEMO_SITES=true` in one terminal, run `npm test` i
 
 ## Licensing and attribution
 
-This repository has no runtime npm dependencies. The application code is offered under MIT; see `LICENSE`. The UI uses Google Fonts via the fonts.googleapis.com service when online (Poppins, Inter and Noto Sans Devanagari, SIL Open Font License 1.1); system sans-serif fallbacks work without a network connection. The optional map uses vendored MapLibre GL JS (BSD-3-Clause, `public/vendor/MAPLIBRE-LICENSE.txt`) and OpenFreeMap tiles built from OpenStreetMap data (© OpenStreetMap contributors, ODbL); attribution is shown on the map. Source listings and full license text are in `THIRD_PARTY_NOTICES.md`.
+The only runtime npm dependency is the official Flagsmith SDK, `@flagsmith/nodejs` 9.5.0 (MIT), pinned in `package-lock.json`; run `npm install` before starting. The application code is offered under MIT; see `LICENSE`. The UI uses Google Fonts via the fonts.googleapis.com service when online (Poppins, Inter and Noto Sans Devanagari, SIL Open Font License 1.1); system sans-serif fallbacks work without a network connection. The optional map uses vendored MapLibre GL JS (BSD-3-Clause, `public/vendor/MAPLIBRE-LICENSE.txt`) and OpenFreeMap tiles built from OpenStreetMap data (© OpenStreetMap contributors, ODbL); attribution is shown on the map. Source listings and full license text are in `THIRD_PARTY_NOTICES.md`.
 
 The Operations route requires configured staff credentials and shows fictional site data alongside the optional manual Apify import control. It does not provide site editing or approve imported data into public listings. The header uses the Ganesh logo supplied by the user, cropped to fit the brand mark.
 
